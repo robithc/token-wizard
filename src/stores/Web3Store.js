@@ -13,18 +13,22 @@ class Web3Store {
   @observable accounts
 
   constructor() {
-    this.getWeb3(web3 => {
+    this.getWeb3(async (web3, status) => {
       if (web3) {
         this.web3 = web3
-        web3.eth
-          .getAccounts()
-          .then(accounts => {
+        if (typeof web3.eth.getAccounts !== 'undefined') {
+          try {
+            const accounts = await web3.eth.getAccounts((error, response) => {
+              if (!error) return response
+            })
             this.accounts = accounts
             if (accounts.length > 0) {
               this.setProperty('curAddress', accounts[0])
             }
-          })
-          .catch(err => logger.log('There is no accounts'))
+          } catch (err) {
+            logger.log('Error trying to get accounts', err)
+          }
+        }
       }
     })
   }
@@ -39,7 +43,7 @@ class Web3Store {
     return `https://${network}.infura.io/${infuraTokenEnvVar}`
   }
 
-  getWeb3 = cb => {
+  getWeb3 = (cb, networkIDparam) => {
     let { ethereum } = window
 
     if (ethereum) {
@@ -47,7 +51,7 @@ class Web3Store {
       try {
         // Request account access if needed
         ethereum.enable().then(() => {
-          this.processWeb3(window.web3, cb)
+          this.processWeb3(window.web3, cb, networkIDparam)
         })
       } catch (error) {
         // User denied account access...
@@ -58,7 +62,7 @@ class Web3Store {
     else if (window.web3) {
       window.web3 = new Web3(window.web3.currentProvider)
       // Acccounts always exposed
-      this.processWeb3(window.web3, cb)
+      this.processWeb3(window.web3, cb, networkIDparam)
     }
     // Non-dapp browsers...
     else {
@@ -66,8 +70,8 @@ class Web3Store {
     }
   }
 
-  processWeb3 = (web3, cb) => {
-    let networkID = CrowdsaleConfig.networkID || getNetworkID()
+  processWeb3 = (web3, cb, networkIDparam) => {
+    let { networkID = networkIDparam || getNetworkID() } = CrowdsaleConfig
     networkID = Number(networkID)
     if (typeof web3 === 'undefined') {
       // no web3, use fallback
@@ -106,7 +110,7 @@ class Web3Store {
     } else {
       // window.web3 == web3 most of the time. Don't override the provided,
       // web3, just wrap it in your Web3.
-      let myWeb3 = new Web3(web3.currentProvider)
+      const myWeb3 = new Web3(web3.currentProvider)
 
       cb(myWeb3, false)
       return myWeb3
