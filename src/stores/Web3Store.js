@@ -13,18 +13,17 @@ class Web3Store {
   @observable accounts
 
   constructor() {
-    this.getWeb3(async (web3, status) => {
+    this.getWeb3( (web3, status) => {
       if (web3) {
         this.web3 = web3
         if (typeof web3.eth.getAccounts !== 'undefined') {
           try {
-            const accounts = await web3.eth.getAccounts((error, response) => {
-              if (!error) return response
+            web3.eth.getAccounts().then(accounts => {
+              this.accounts = accounts
+              if (accounts.length > 0) {
+                this.curAddress = accounts[0]
+              }
             })
-            this.accounts = accounts
-            if (accounts.length > 0) {
-              this.setProperty('curAddress', accounts[0])
-            }
           } catch (err) {
             logger.log('Error trying to get accounts', err)
           }
